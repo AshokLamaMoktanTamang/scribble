@@ -1,0 +1,131 @@
+import { Drawable } from "./drawable";
+import { Mode, Point } from "../@types";
+import { Circle } from "../shapes/circle";
+import { FreePath } from "../shapes/freePath";
+import { Rectangle } from "../shapes/rectangle";
+
+export class Scribble {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private mode: Mode = "free";
+  private drawing = false;
+  private start: Point = { x: 0, y: 0 };
+  private currentPath: Point[] = [];
+  private shapes: Drawable[] = [];
+  private selected: Drawable | null = null;
+  private dragOffset: Point = { x: 0, y: 0 };
+
+  constructor(canvasId: string) {
+    this.canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    this.ctx = this.canvas.getContext("2d")!;
+    this.attachEvents();
+  }
+
+  setMode(mode: Mode) {
+    console.log("Switched to mode:", mode);
+    this.mode = mode;
+  }
+
+  clearCanvas() {
+    this.shapes = [];
+    this.redraw();
+  }
+
+  private attachEvents() {
+    document.querySelectorAll("button[data-mode]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        this.setMode((btn as HTMLButtonElement).dataset.mode as Mode);
+      });
+    });
+
+    document
+      .getElementById("clear")!
+      .addEventListener("click", () => this.clearCanvas());
+
+    this.canvas.addEventListener("mousedown", (e) => this.onMouseDown(e));
+    this.canvas.addEventListener("mousemove", (e) => this.onMouseMove(e));
+    this.canvas.addEventListener("mouseup", (e) => this.onMouseUp(e));
+  }
+
+  private onMouseDown(e: MouseEvent) {
+    const { offsetX, offsetY } = e;
+    this.start = { x: offsetX, y: offsetY };
+    this.drawing = true;
+
+    if (this.mode === "free") {
+      this.currentPath = [this.start];
+    } else if (this.mode === "drag") {
+      this.selected = this.findShapeAt(this.start);
+      if (this.selected) {
+        this.dragOffset = {
+          x:
+            this.start.x -
+            ("x" in this.selected ? (this.selected as any).x : 0),
+          y:
+            this.start.y -
+            ("y" in this.selected ? (this.selected as any).y : 0),
+        };
+      }
+    }
+  }
+
+  private onMouseMove(e: MouseEvent) {
+    const point: Point = { x: e.offsetX, y: e.offsetY };
+    if (!this.drawing) return;
+
+    if (this.mode === "free") {
+      const prev = this.currentPath[this.currentPath.length - 1];
+      this.currentPath.push(point);
+      this.ctx.beginPath();
+      this.ctx.moveTo(prev.x, prev.y);
+      this.ctx.lineTo(point.x, point.y);
+      this.ctx.stroke();
+    } else if (this.mode === "drag" && this.selected) {
+      const dx = point.x - this.start.x;
+      const dy = point.y - this.start.y;
+      this.selected.move(dx, dy);
+      this.start = point;
+      this.redraw();
+    }
+  }
+
+  private onMouseUp(e: MouseEvent) {
+    const end: Point = { x: e.offsetX, y: e.offsetY };
+    if (!this.drawing) return;
+    this.drawing = false;
+
+    switch (this.mode) {
+      case "free":
+        this.shapes.push(new FreePath(this.currentPath));
+        break;
+      case "rect":
+        const w = end.x - this.start.x;
+        const h = end.y - this.start.y;
+        this.shapes.push(new Rectangle(this.start.x, this.start.y, w, h));
+        break;
+      case "circle":
+        const dx = end.x - this.start.x;
+        const dy = end.y - this.start.y;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        this.shapes.push(new Circle(this.start.x, this.start.y, r));
+        break;
+    }
+
+    this.selected = null;
+    this.redraw();
+  }
+
+  private findShapeAt(p: Point): Drawable | null {
+    for (let i = this.shapes.length - 1; i >= 0; i--) {
+      if (this.shapes[i].isHit(p)) return this.shapes[i];
+    }
+    return null;
+  }
+
+  private redraw() {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    for (const shape of this.shapes) {
+      shape.draw(this.ctx);
+    }
+  }
+}
