@@ -14,6 +14,7 @@ A lightweight canvas-based drawing application built with **TypeScript** and **V
 - ✋ Drag Mode (move shapes)
 - 🧹 Clear Canvas
 - 🎯 Shape hover effects
+- ✋ Resize the shapes (shiftkey + drag)
 
 ---
 

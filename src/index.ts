@@ -9,6 +9,7 @@ export class Scribble {
   private ctx: CanvasRenderingContext2D;
   private mode: Mode = "free";
   private drawing = false;
+  private resizing = false;
   private start: Point = { x: 0, y: 0 };
   private currentPath: Point[] = [];
   private shapes: Drawable[] = [];
@@ -35,26 +36,44 @@ export class Scribble {
     this.canvas.addEventListener("mousedown", (e) => this.onMouseDown(e));
     this.canvas.addEventListener("mousemove", (e) => this.onMouseMove(e));
     this.canvas.addEventListener("mouseup", (e) => this.onMouseUp(e));
+    window.addEventListener("keydown", (e) => this.onKeyDown(e));
+  }
+
+  private onKeyDown(e: KeyboardEvent) {
+    if (e.key === "Delete" && this.selected) {
+      const index = this.shapes.indexOf(this.selected);
+      if (index > -1) {
+        this.shapes.splice(index, 1);
+        this.selected = null;
+        this.redraw();
+      }
+    }
   }
 
   private onMouseDown(e: MouseEvent) {
-    const { offsetX, offsetY } = e;
+    const { offsetX, offsetY, shiftKey } = e;
     this.start = { x: offsetX, y: offsetY };
     this.drawing = true;
 
+    
     if (this.mode === "free") {
       this.currentPath = [this.start];
     } else if (this.mode === "drag") {
       this.selected = this.findShapeAt(this.start);
+
       if (this.selected) {
-        this.dragOffset = {
-          x:
-            this.start.x -
-            ("x" in this.selected ? (this.selected as any).x : 0),
-          y:
-            this.start.y -
-            ("y" in this.selected ? (this.selected as any).y : 0),
-        };
+        if (shiftKey) {
+          this.resizing = true;
+        } else {
+          this.dragOffset = {
+            x:
+              this.start.x -
+              ("x" in this.selected ? (this.selected as any).x : 0),
+            y:
+              this.start.y -
+              ("y" in this.selected ? (this.selected as any).y : 0),
+          };
+        }
       }
     }
   }
@@ -84,8 +103,22 @@ export class Scribble {
     } else if (this.mode === "drag" && this.selected) {
       const dx = point.x - this.start.x;
       const dy = point.y - this.start.y;
-      this.selected.move(dx, dy);
       this.start = point;
+
+      if (this.resizing) {
+        if (this.selected instanceof Rectangle) {
+          (this.selected as any).w += dx;
+          (this.selected as any).h += dy;
+        } else if (this.selected instanceof Circle) {
+          const newRadius = Math.sqrt(
+            Math.pow((this.selected as any).radius + dx, 2) + Math.pow(dy, 2)
+          );
+          (this.selected as any).r = Math.max(newRadius, 5);
+        }
+      } else {
+        this.selected.move(dx, dy);
+      }
+
       this.redraw();
     }
   }
@@ -94,6 +127,7 @@ export class Scribble {
     const end: Point = { x: e.offsetX, y: e.offsetY };
     if (!this.drawing) return;
     this.drawing = false;
+    this.resizing = false;
 
     switch (this.mode) {
       case "free":
