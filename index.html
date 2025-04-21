@@ -24,11 +24,25 @@
     </div>
 
     <canvas id="canvas" width="800" height="500"></canvas>
+
+    <script type="module">
+      import { Scribble } from "./dist/index.js";
+
+      window.onload = () => {
+        const canvas = document.getElementById("canvas");
+        const app = new Scribble(canvas);
+
+        document.querySelectorAll("button[data-mode]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const mode = btn.dataset.mode;
+            app.setMode(mode);
+          });
+        });
+
+        document.getElementById("clear").addEventListener("click", () => {
+          app.clearCanvas();
+        });
+      };
+    </script>
   </body>
-  <script type="module" src="./dist/index.js"></script>
-  <script>
-    window.onload = () => {
-      new DrawingApp("canvas");
-    };
-  </script>
 </html>

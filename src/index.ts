@@ -1,8 +1,8 @@
-import { Drawable } from "./drawable";
-import { Mode, Point } from "../@types";
-import { Circle } from "../shapes/circle";
-import { FreePath } from "../shapes/freePath";
-import { Rectangle } from "../shapes/rectangle";
+import { Drawable } from "./scribble/drawable";
+import { Mode, Point } from "./@types";
+import { Circle } from "./shapes/circle";
+import { FreePath } from "./shapes/freePath";
+import { Rectangle } from "./shapes/rectangle";
 
 export class Scribble {
   private canvas: HTMLCanvasElement;
@@ -13,35 +13,25 @@ export class Scribble {
   private currentPath: Point[] = [];
   private shapes: Drawable[] = [];
   private selected: Drawable | null = null;
+  private hoveredShape: Drawable | null = null;
   private dragOffset: Point = { x: 0, y: 0 };
 
-  constructor(canvasId: string) {
-    this.canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
     this.ctx = this.canvas.getContext("2d")!;
     this.attachEvents();
   }
 
-  setMode(mode: Mode) {
-    console.log("Switched to mode:", mode);
+  public setMode(mode: Mode) {
     this.mode = mode;
   }
 
-  clearCanvas() {
+  public clearCanvas() {
     this.shapes = [];
     this.redraw();
   }
 
   private attachEvents() {
-    document.querySelectorAll("button[data-mode]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        this.setMode((btn as HTMLButtonElement).dataset.mode as Mode);
-      });
-    });
-
-    document
-      .getElementById("clear")!
-      .addEventListener("click", () => this.clearCanvas());
-
     this.canvas.addEventListener("mousedown", (e) => this.onMouseDown(e));
     this.canvas.addEventListener("mousemove", (e) => this.onMouseMove(e));
     this.canvas.addEventListener("mouseup", (e) => this.onMouseUp(e));
@@ -71,6 +61,17 @@ export class Scribble {
 
   private onMouseMove(e: MouseEvent) {
     const point: Point = { x: e.offsetX, y: e.offsetY };
+
+    if (!this.drawing && this.mode === "drag") {
+      const shape = this.findShapeAt(point);
+      if (shape !== this.hoveredShape) {
+        this.hoveredShape = shape;
+        this.canvas.style.cursor = shape ? "move" : "default";
+        this.redraw();
+      }
+      return;
+    }
+
     if (!this.drawing) return;
 
     if (this.mode === "free") {
@@ -126,6 +127,16 @@ export class Scribble {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     for (const shape of this.shapes) {
       shape.draw(this.ctx);
+    }
+
+    if (this.hoveredShape) {
+      this.ctx.save();
+      this.ctx.shadowColor = "rgba(0, 0, 255, 0.6)";
+      this.ctx.shadowBlur = 10;
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeStyle = "blue";
+      this.hoveredShape.draw(this.ctx);
+      this.ctx.restore();
     }
   }
 }
