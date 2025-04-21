@@ -30,7 +30,7 @@ A lightweight canvas-based drawing application built with **TypeScript** and **V
 
 ```bash
 # clone the repo
-git clone https://github.com/yourusername/scribble.git
+git clone https://github.com/AshokLamaMoktanTamang/scribble
 cd scribble
 
 # install dependencies
